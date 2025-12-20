@@ -96,9 +96,10 @@
 
     "sources": [
         {
-        "type": "user_provided_text",
-        "title": "太陽（The Sun）牌義整理",
-        "license_note": "provided_by_user"
+        "type": "魔法塔羅",
+        "title": "塔羅牌牌義解釋",
+        "url": "https://mofatarot.com/blogs/taluo-pai-paiyi-jiexi",
+        "license_note": "paraphrased"
         }
     ],
 

@@ -94,6 +94,15 @@
         "看到這張牌也表明你正處於自我反省行為所帶來的覺醒時期。"
     ],
 
+    "sources": [
+        {
+        "type": "魔法塔羅",
+        "title": "塔羅牌牌義解釋",
+        "url": "https://mofatarot.com/blogs/taluo-pai-paiyi-jiexi",
+        "license_note": "paraphrased"
+        }
+    ],
+
     "tags": ["覺醒", "清算", "重生", "反思", "責任", "轉折"],
     "version": "1.0"
 }

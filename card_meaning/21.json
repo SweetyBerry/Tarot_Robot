@@ -94,6 +94,14 @@
     "quotes": [
         "在你的卡片中遇到世界就是遇到一個偉大的團結和整體。"
     ],
+    "sources": [
+        {
+        "type": "魔法塔羅",
+        "title": "塔羅牌牌義解釋",
+        "url": "https://mofatarot.com/blogs/taluo-pai-paiyi-jiexi",
+        "license_note": "paraphrased"
+        }
+    ],
 
     "tags": ["完成", "圓滿", "整合", "成就", "和諧", "生命週期"],
     "version": "1.0"
