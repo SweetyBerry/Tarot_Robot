@@ -23,7 +23,7 @@ hf_logging.set_verbosity_error()
 Mode = Literal["general", "love", "career", "money"]
 Orientation = Literal["upright", "reversed"]
 
-MODEL_NAME = "Qwen/Qwen2.5-3B-Instruct"
+MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct"
 
 _cc_s2t = OpenCC("s2t")
 
@@ -182,53 +182,79 @@ def _extract_mode_meaning_lines(card: dict[str, Any], mode: Mode) -> list[str]:
 	return dedup
 
 
-def build_reading_prompt(reading: dict[str, Any], user_question: str, user_information: str) -> tuple[str, dict[str, str]]:
-	mode: Mode = reading["mode"]
-	cards = reading["cards"]
+def build_reading_prompt(
+    reading: dict[str, Any],
+    user_question: str,
+    user_information: str,
+) -> tuple[str, dict[str, str]]:
+    mode: Mode = reading["mode"]
+    cards = reading["cards"]
 
-	mode_zh_map = {
-		"general": "一般",
-		"love": "愛情",
-		"career": "事業",
-		"money": "金錢",
-	}
-	mode_zh = mode_zh_map.get(mode, "一般")
+    mode_zh_map = {
+        "general": "一般",
+        "love": "愛情",
+        "career": "事業",
+        "money": "金錢",
+    }
+    mode_zh = mode_zh_map.get(mode, "一般")
 
-	def fmt_card(role_zh: str, c: dict[str, Any]) -> str:
-		ori: Orientation = c.get("orientation", "upright")
-		ori_zh = "正位" if ori == "upright" else "逆位"
+    # === 給模型用（含牌義） ===
+    def fmt_card_for_prompt(role_zh: str, c: dict[str, Any]) -> str:
+        ori: Orientation = c.get("orientation", "upright")
+        ori_zh = "正位" if ori == "upright" else "逆位"
 
-		kw = c.get("keywords", {}).get(ori, [])
-		kw_text = ", ".join(kw) if isinstance(kw, list) and kw else "（無）"
+        kw = c.get("keywords", {}).get(ori, [])
+        kw_text = ", ".join(kw) if isinstance(kw, list) and kw else "（無）"
 
-		mode_lines = _extract_mode_meaning_lines(c, mode)
-		mode_text = "\n".join([f"  - {line}" for line in mode_lines]) if mode_lines else "  - （略）"
+        mode_lines = _extract_mode_meaning_lines(c, mode)
+        mode_text = "\n".join([f"  - {line}" for line in mode_lines]) if mode_lines else "  - （略）"
 
-		return (
-			f"{c.get('name_zh')}（{c.get('name_en')}）— {ori_zh}\n"
-			f"- 本位關鍵字：{kw_text}\n"
-			f"- {mode_zh}牌義（節錄）：\n{mode_text}\n"
-		)
+        return (
+            f"【{role_zh}】{c.get('name_zh')}（{c.get('name_en')}）— {ori_zh}\n"
+            f"- 本位關鍵字：{kw_text}\n"
+            f"- {mode_zh}牌義（節錄）：\n{mode_text}\n"
+        )
 
-	past_text = fmt_card("過去", cards["past"])
-	present_text = fmt_card("現在", cards["present"])
-	future_text = fmt_card("未來", cards["future"])
+    # === 給前端顯示用（只有關鍵字） ===
+    def fmt_card_for_excerpt(role_zh: str, c: dict[str, Any]) -> str:
+        ori: Orientation = c.get("orientation", "upright")
+        ori_zh = "正位" if ori == "upright" else "逆位"
 
-	prompt = (
-		"你是一位只用繁體中文回答的塔羅牌占卜師，口吻神祕但務實、具體。\n"
-		"請根據使用者個人資訊和抽到的三張塔羅牌去貼切的回答使用者問題。\n"
-		"另外根據占卜結果編一個未來可能會發生的故事。\n"
-		f"本次占卜模式：{mode_zh}。\n"
-		"以下是三張牌（過去/現在/未來），每張牌可能為正位或逆位。\n\n"
-		f"{past_text}\n"
-		f"{present_text}\n"
-		f"{future_text}\n"
-		f"使用者問題：{user_question}\n"
-		f"使用者個人資訊：{user_information}\n"
-	)
+        kw = c.get("keywords", {}).get(ori, [])
+        kw_text = ", ".join(kw) if isinstance(kw, list) and kw else "（無）"
 
-	excerpts = {"past": past_text, "present": present_text, "future": future_text}
-	return prompt, excerpts
+        return (
+            f"【{role_zh}】{c.get('name_zh')}（{c.get('name_en')}）— {ori_zh}\n"
+            f"- 本位關鍵字：{kw_text}\n"
+        )
+
+    # === prompt（完整） ===
+    past_p = fmt_card_for_prompt("過去", cards["past"])
+    present_p = fmt_card_for_prompt("現在", cards["present"])
+    future_p = fmt_card_for_prompt("未來", cards["future"])
+
+    prompt = (
+        "你是一位只用繁體中文回答的塔羅牌占卜師，口吻神祕但務實、具體。\n"
+        "請根據使用者個人資訊和抽到的三張塔羅牌去貼切的回答使用者問題。\n"
+        "另外根據占卜結果編一個未來可能會發生的故事。\n"
+        f"本次占卜模式：{mode_zh}。\n"
+        "以下是三張牌（過去/現在/未來），每張牌可能為正位或逆位。\n\n"
+        f"{past_p}\n"
+        f"{present_p}\n"
+        f"{future_p}\n"
+        f"使用者問題：{user_question}\n"
+        f"使用者個人資訊：{user_information}\n"
+    )
+
+    # === excerpts（精簡，只給前端） ===
+    excerpts = {
+        "past": fmt_card_for_excerpt("過去", cards["past"]),
+        "present": fmt_card_for_excerpt("現在", cards["present"]),
+        "future": fmt_card_for_excerpt("未來", cards["future"]),
+    }
+
+    return prompt, excerpts
+
 
 
 def generate_response_qwen(
@@ -305,7 +331,6 @@ def ask_tarot(mode: Mode, question: str, information: str) -> dict[str, Any]:
 		"mode": mode,
 		"question": question,
 		"information": information,
-		# 如果你覺得回傳太大，可以之後把 cards/meanings 精簡掉
 		"cards": reading["cards"],
 		"excerpts": excerpts,
 		"answer": answer,

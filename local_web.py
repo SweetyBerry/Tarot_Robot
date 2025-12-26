@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import struct
 import socket
 import json
 import threading
@@ -10,7 +10,8 @@ from typing import Any, Literal
 
 from llm_ask import ask_tarot
 
-
+TUNNEL_HOST = "127.0.0.1"
+TUNNEL_PORT = 6000
 Mode = Literal["general", "love", "career", "money"]
 ALLOWED_MODES: set[str] = {"general", "love", "career", "money"}
 
@@ -161,6 +162,27 @@ INDEX_HTML = """<!doctype html>
 JOBS: dict[str, dict[str, Any]] = {}
 JOBS_LOCK = threading.Lock()
 
+def recvall(conn: socket.socket, n: int) -> bytes:
+	buf = b""
+	while len(buf) < n:
+		chunk = conn.recv(n - len(buf))
+		if not chunk:
+			raise ConnectionError("socket closed")
+		buf += chunk
+	return buf
+
+def send_rpc(host: str, port: int, payload: dict[str, Any], timeout: float = 300.0) -> dict[str, Any]:
+	data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+	header = struct.pack("!I", len(data))
+
+	with socket.create_connection((host, port), timeout=10.0) as s:
+		s.settimeout(timeout)  # 推理可能很久
+		s.sendall(header + data)
+
+		raw_len = recvall(s, 4)
+		(msg_len,) = struct.unpack("!I", raw_len)
+		raw = recvall(s, msg_len)
+		return json.loads(raw.decode("utf-8"))
 
 def send_json(h: BaseHTTPRequestHandler, status: int, payload: dict[str, Any]) -> None:
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -228,11 +250,16 @@ def run_tarot_job(job_id: str) -> None:
     print("===================================\n")
 
     try:
-        result = ask_tarot(
-            mode=payload["mode"],
-            question=payload["question"],
-            information=payload["information"],
-        )
+        result = send_rpc(
+			host=TUNNEL_HOST,
+			port=TUNNEL_PORT,
+			payload={
+				"mode": payload["mode"],
+				"question": payload["question"],
+				"information": payload["information"],
+			},
+			timeout=600.0,  # 視你模型推理時間調
+		)
 
         if result.get("ok"):
             slim_cards: dict[str, dict[str, Any]] = {}
