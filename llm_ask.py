@@ -211,7 +211,7 @@ def build_reading_prompt(
 
         return (
             f"【{role_zh}】{c.get('name_zh')}（{c.get('name_en')}）— {ori_zh}\n"
-            f"- 本位關鍵字：{kw_text}\n"
+            f"- 關鍵字：{kw_text}\n"
             f"- {mode_zh}牌義（節錄）：\n{mode_text}\n"
         )
 
@@ -224,8 +224,8 @@ def build_reading_prompt(
         kw_text = ", ".join(kw) if isinstance(kw, list) and kw else "（無）"
 
         return (
-            f"【{role_zh}】{c.get('name_zh')}（{c.get('name_en')}）— {ori_zh}\n"
-            f"- 本位關鍵字：{kw_text}\n"
+            f"【 {c.get('name_zh')} 】（{c.get('name_en')}）— {ori_zh}\n"
+            f"- 關鍵字：{kw_text}\n"
         )
 
     # === prompt（完整） ===
